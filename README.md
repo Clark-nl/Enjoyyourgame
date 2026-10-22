@@ -12,3 +12,13 @@
 - 단축키: `Space` 시작 · `M` 음소거 · `S` 스트리머 · `1/2/3` 속도
 
 ☕ 응원하기: https://ko-fi.com/clarkpark
+
+---
+
+## 🇬🇧 English version
+
+▶ **Live:** https://clark-nl.github.io/Enjoyyourgame/en/
+
+A fair marble-race random picker: every draw is seeded, runs on fixed-timestep physics, and can be replayed by anyone from a share link to verify the result. Win modes: 1st / Last / Top N / Teams · 5 maps · slow-mo camera · live ranking · WebM recording · streamer (chroma-key) mode.
+
+☕ Tip jar: https://ko-fi.com/clarkpark

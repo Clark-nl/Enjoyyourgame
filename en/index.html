@@ -1,0 +1,1660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Marble Roulette+</title>
+<meta name="description" content="A fair marble-race random picker — every draw is seeded, replayable and verifiable">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* =========================================================
+ * STYLE
+ * ========================================================= */
+:root{
+  --bg:#0a0f1f; --panel:#111833; --panel2:#18214a; --line:#26315e; --field:#0d1430;
+  --text:#e9edff; --muted:#93a0d1; --accent:#ffd23f; --accent-ink:#1c1500; --accent2:#4de2c5;
+  --danger:#ff5d73; --ok:#5be38a; --radius:14px; --chroma:#00B140;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,-apple-system,sans-serif;font-size:14px}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+kbd{font:600 11px ui-monospace,monospace;padding:1px 5px;border-radius:5px;border:1px solid currentColor;opacity:.7;margin-left:6px}
+code{font-family:ui-monospace,monospace;background:var(--panel2);padding:0 4px;border-radius:4px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* ---- header ---- */
+header.top{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#141d42,#0a0f1f);flex-wrap:wrap}
+.brand{font-family:'Black Han Sans',sans-serif;font-size:22px;color:var(--accent);white-space:nowrap;letter-spacing:.5px}
+.brand span{color:var(--accent2)}
+.chip{font:700 12px ui-monospace,monospace;padding:5px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
+.spacer{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--field)}
+.seg button{border:0;background:transparent;padding:6px 10px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"],.seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);font-weight:800}
+.seg.wide{display:flex}.seg.wide button{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--panel2);
+  padding:7px 12px;border-radius:10px;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .15s,transform .05s}
+.btn:hover{background:#222d60}.btn:active{transform:translateY(1px)}
+.btn.sm{padding:5px 9px;font-size:13px}
+.btn.ghost{background:transparent}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:800}
+.btn.primary:hover{background:#ffdc66}
+.btn.big{width:100%;padding:13px;font-size:17px;border-radius:12px}
+.btn.danger{background:var(--danger);color:#fff;border-color:transparent}
+.btn[disabled],fieldset[disabled] .btn{opacity:.5;cursor:not-allowed}
+.icon-btn{width:36px;height:34px;padding:0}
+.donate-wrap{position:relative}
+.donate-menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;
+  display:flex;flex-direction:column;gap:4px;z-index:30;min-width:180px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+body.racing .donate-wrap{visibility:hidden}
+
+/* ---- layout ---- */
+main.app{flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0}
+.panel{overflow:auto;padding:12px 12px 0;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:10px}
+fieldset#ctrl{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset#ctrl[disabled]{opacity:.55}
+.card{background:var(--field);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
+.card h3,.card-h{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--muted);display:flex;justify-content:space-between;align-items:center;letter-spacing:.3px}
+.card-h label{color:var(--text)}
+textarea#names{width:100%;resize:vertical;min-height:110px;background:#0a1028;border:1px solid var(--line);border-radius:10px;padding:8px;line-height:1.5}
+input[type=number],input.text{background:#0a1028;border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%}
+#seedIn{width:120px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.45}
+.warn{margin-top:6px;padding:7px 9px;border-radius:9px;background:rgba(255,93,115,.12);border:1px solid rgba(255,93,115,.35);font-size:12.5px}
+.warn .row{margin-top:5px}
+.verify{margin-top:8px;padding:8px 10px;border-radius:9px;background:rgba(77,226,197,.1);border:1px solid rgba(77,226,197,.35);font-size:12.5px;line-height:1.5}
+.maps{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.map-opt{position:relative;text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px;cursor:pointer}
+.map-opt b{display:block;font-size:13px}.map-opt small{color:var(--muted);font-size:11.5px}
+.map-opt[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.lock{font-size:11px}
+.tag{font-size:11px;padding:1px 6px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);margin-left:4px}
+.chk{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+.start-wrap{position:sticky;bottom:0;padding:10px 0 12px;background:linear-gradient(180deg,rgba(17,24,51,0),var(--panel) 30%)}
+#histList{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+#histList li{font-size:12.5px}
+#histList .h-meta{color:var(--muted);font-size:11.5px}
+details summary{cursor:pointer;font-weight:800;color:var(--muted);font-size:13px}
+details[open] summary{margin-bottom:8px}
+.file{position:relative}
+
+/* ---- stage ---- */
+.stage{position:relative;min-height:0;overflow:hidden;background:#070b18}
+canvas#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+.ranking{position:absolute;top:10px;right:10px;width:210px;max-height:calc(100% - 20px);overflow:hidden;
+  background:rgba(9,14,34,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:8px 8px 6px}
+.rk-h{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px}
+.rk-h b{font-size:12.5px}
+#rkList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+#rkList li{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:3px 4px;border-radius:6px;position:relative;overflow:hidden}
+#rkList li .bar{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.06);z-index:0}
+#rkList li > *:not(.bar){position:relative;z-index:1}
+#rkList li.fin{background:rgba(255,210,63,.13)}
+#rkList .rk{width:20px;text-align:right;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+#rkList .dot{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+#rkList .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.start-fab{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);font-size:18px;padding:12px 26px;border-radius:999px;
+  box-shadow:0 8px 30px rgba(255,210,63,.35)}
+body.racing .start-fab{display:none}
+.qr-corner{position:absolute;left:14px;bottom:14px;background:#fff;color:#111;padding:8px;border-radius:10px;text-align:center;font:800 12px 'Noto Sans KR',sans-serif}
+.qr-corner span{display:block;margin-top:4px}
+.exit-streamer,.stream-hint{display:none}
+
+/* ---- streamer mode ---- */
+body.streamer header.top,body.streamer .panel,body.streamer .ranking,body.streamer .start-fab{display:none}
+body.streamer main.app{grid-template-columns:1fr}
+body.streamer .stage{background:var(--chroma)}
+body.streamer .exit-streamer{display:block;position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.5);color:#fff;font-size:18px;cursor:pointer;opacity:0;transition:opacity .2s}
+body.streamer .exit-streamer:hover,body.streamer .exit-streamer:focus{opacity:1}
+body.streamer .stream-hint{display:block;position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;
+  padding:6px 14px;border-radius:999px;font-size:14px;transition:opacity 1s}
+body.streamer .stream-hint.fade{opacity:0}
+
+/* ---- modal / toast ---- */
+.backdrop{position:fixed;inset:0;background:rgba(3,6,16,.62);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.backdrop[hidden]{display:none}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;max-width:520px;width:100%;max-height:calc(100dvh - 32px);overflow:auto;
+  padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:pop .25s ease}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+.modal h2{margin:0 0 4px;font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:28px;color:var(--accent)}
+.modal .x{float:right;border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}
+.winners{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.winner{display:flex;align-items:center;gap:8px;font-size:22px;font-weight:800;padding:8px 14px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+.winner i{width:16px;height:16px;border-radius:50%}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:12px 0}
+.team{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.team b{display:block;color:var(--accent);margin-bottom:4px}
+.team div{font-size:13.5px;line-height:1.6}
+.full-rank{max-height:170px;overflow:auto;margin:8px 0;padding:8px 10px 8px 34px;background:var(--field);border-radius:10px;border:1px solid var(--line);font-size:13px;line-height:1.6}
+.meta{font-size:12px;color:var(--muted);line-height:1.5}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.badge{display:inline-block;padding:6px 10px;border-radius:9px;font-size:13px;font-weight:700;margin-top:8px}
+.badge.ok{background:rgba(91,227,138,.14);color:var(--ok);border:1px solid rgba(91,227,138,.4)}
+.badge.bad{background:rgba(255,93,115,.14);color:var(--danger);border:1px solid rgba(255,93,115,.4)}
+.donate-foot{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);text-align:center}
+.donate-foot p{margin:0 0 8px;color:var(--muted)}
+.donate-foot .row{justify-content:center}
+.watermark{margin-top:10px;text-align:right;font-size:11px;color:var(--muted);opacity:.8}
+table.cmp{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+table.cmp th,table.cmp td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:center}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+table.cmp tr.hl td{background:rgba(255,210,63,.1)}
+table.cmp thead th:last-child{color:var(--accent)}
+.lic-status{font-size:12.5px;margin-top:6px;min-height:1.2em}
+.toast-wrap{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:60;width:min(440px,calc(100% - 24px))}
+.toast{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.4);
+  display:flex;gap:10px;align-items:center;animation:pop .25s ease;font-size:13.5px}
+.toast p{margin:0;flex:1}
+.toast .x{border:0;background:transparent;cursor:pointer;color:var(--muted);font-size:18px}
+
+/* ---- responsive (mobile portrait) ---- */
+@media (max-width:820px){
+  body{height:auto;min-height:100dvh;overflow:auto}
+  main.app{grid-template-columns:1fr;display:flex;flex-direction:column}
+  .stage{height:62dvh;min-height:340px;flex:none}
+  .panel{border-right:0;overflow:visible}
+  .ranking{width:148px;font-size:12px;padding:6px}
+  #rkList li:nth-child(n+7){display:none}
+  header.top{padding:6px 10px;gap:6px}
+  .brand{font-size:19px}
+  .hide-sm{display:none}
+  body.streamer .stage{height:100dvh}
+}
+@media (prefers-reduced-motion:reduce){.modal,.toast{animation:none}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand" aria-label="Marble Roulette Plus">Marble Roulette<span>+</span></div>
+  <span class="chip" id="seedChip" title="Seed for this draw — revealed before the start">SEED #--------</span>
+  <div class="spacer"></div>
+  <div class="seg" id="speedSeg" role="group" aria-label="Race speed">
+    <button type="button" data-speed="0.5" aria-pressed="false">0.5x</button>
+    <button type="button" data-speed="1" aria-pressed="true">1x</button>
+    <button type="button" data-speed="2" aria-pressed="false">2x</button>
+  </div>
+  <button type="button" class="btn icon-btn" id="btnMute" aria-label="Toggle mute" title="Mute (M)">🔊</button>
+  <button type="button" class="btn sm" id="btnStreamer" title="Streamer mode (S)">📺<span class="hide-sm">Streamer</span></button>
+  <a class="btn sm ghost" href="../" title="한국어 버전" lang="ko">한국어</a>
+  <div class="donate-wrap" id="donateWrap" hidden></div>
+</header>
+
+<main class="app">
+  <!-- ========== Control panel ========== -->
+  <aside class="panel" aria-label="Draw settings">
+    <fieldset id="ctrl">
+      <section class="card">
+        <div class="card-h"><label for="names">Players</label><span id="count" class="muted"></span></div>
+        <textarea id="names" spellcheck="false" placeholder="Alice, Bob, Charlie*3&#10;One per line works too&#10;Name*3 = 3 marbles (3× the chance)"></textarea>
+        <div id="dupWarn" class="warn" hidden></div>
+        <div id="colorHint" class="hint" hidden></div>
+        <div class="row">
+          <button type="button" class="btn sm" id="btnShuffle">🔀 Shuffle</button>
+          <label class="btn sm file">📄 Import CSV / text<input type="file" id="fileIn" accept=".txt,.csv,text/plain,text/csv" hidden></label>
+          <button type="button" class="btn sm ghost" id="btnClear">Clear</button>
+        </div>
+        <p class="hint">Paste straight from Excel or CSV. Rows like <code>Name,3</code> become weights.<span id="colorSyntax"> Custom colour: <code>Name@#ff5500</code></span></p>
+      </section>
+
+      <section class="card">
+        <h3>Map</h3>
+        <div id="mapList" class="maps" role="radiogroup" aria-label="Choose map"></div>
+      </section>
+
+      <section class="card">
+        <h3>Win mode</h3>
+        <div class="seg wide" id="modeSeg" role="radiogroup" aria-label="Win mode">
+          <button type="button" role="radio" data-mode="first">1st</button>
+          <button type="button" role="radio" data-mode="last">Last</button>
+          <button type="button" role="radio" data-mode="nwin">Top N</button>
+          <button type="button" role="radio" data-mode="teams">Teams</button>
+        </div>
+        <div class="row" id="kRow" hidden>
+          <label for="kIn" id="kLabel" style="white-space:nowrap">Winners</label>
+          <input type="number" id="kIn" min="1" max="99" value="2" style="width:90px">
+        </div>
+        <p class="hint" id="modeHint"></p>
+      </section>
+
+      <section class="card">
+        <h3>Fairness · Seed</h3>
+        <div class="row" style="margin-top:0">
+          <label for="seedIn" class="sr-only">Seed (8 hex digits)</label>
+          <input id="seedIn" class="mono text" maxlength="8" autocomplete="off">
+          <button type="button" class="btn sm" id="btnReroll">🎲 New seed</button>
+        </div>
+        <p class="hint">The result depends only on <b>seed + list + map + mode</b>. Physics runs on a fixed timestep, so the same inputs always give the same result — anyone can replay a shared link to verify it.</p>
+        <div id="verifyBox" class="verify" hidden></div>
+      </section>
+
+      <section class="card">
+        <h3>Options</h3>
+        <label class="chk"><input type="checkbox" id="optRec"> 🎥 Record race (save WebM) <span class="tag" id="recQ"></span></label>
+        <label class="chk" id="qrOptRow"><input type="checkbox" id="optQR"> Show Ko-fi QR in streamer mode</label>
+        <div class="row" id="logoRow">
+          <label class="btn sm file" id="logoLabel">🖼 Upload logo <span class="lock" id="logoLock"></span><input type="file" id="logoIn" accept="image/*" hidden></label>
+          <button type="button" class="btn sm ghost" id="logoClear" hidden>Remove logo</button>
+        </div>
+      </section>
+    </fieldset>
+
+    <section class="card" id="premiumCard" hidden></section>
+
+    <details class="card" id="histBox">
+      <summary>🕘 Recent results <span id="histCount" class="muted"></span></summary>
+      <ol id="histList"></ol>
+    </details>
+
+    <div class="start-wrap">
+      <button type="button" class="btn primary big" id="btnStart">▶ Start<kbd>Space</kbd></button>
+    </div>
+  </aside>
+
+  <!-- ========== Stage ========== -->
+  <section class="stage" id="stage">
+    <canvas id="cv" role="img" aria-label="Marble race. Results are also shown as text in the results dialog and the ranking list."></canvas>
+    <div class="ranking" aria-label="Live ranking">
+      <div class="rk-h"><b>Live ranking</b><span id="rkInfo" class="muted"></span></div>
+      <ol id="rkList"></ol>
+    </div>
+    <button type="button" class="btn primary start-fab" id="fab">▶ Start</button>
+    <div id="qrCorner" class="qr-corner" hidden><div id="qrBox"></div><span>☕ Ko-fi</span></div>
+    <button type="button" id="exitStreamer" class="exit-streamer" aria-label="Exit streamer mode">✕</button>
+    <div id="streamHint" class="stream-hint">Space start · Esc exit</div>
+  </section>
+</main>
+
+<div id="live" class="sr-only" aria-live="polite"></div>
+
+<!-- Result dialog -->
+<div class="backdrop" id="resultBack" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resTitle" id="resultModal"></div>
+</div>
+<!-- Upgrade dialog -->
+<div class="backdrop" id="upBack" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="upTitle" id="upModal"></div>
+</div>
+<div class="toast-wrap" id="toasts" aria-live="polite"></div>
+
+<!-- =========================================================
+ * MAPS (JSON data)
+ * Units: world px. The map is scaled to fit the screen by its width.
+ * Elements (t):
+ *   wall    {p:[x1,y1,x2,y2,...], w}          polyline wall
+ *   peg     {x,y,r}  / pegs {r, pts:[[x,y],...]}
+ *   pegGrid {x0,y0,cols,rows,dx,dy,r,stagger}  grid of pins
+ *   bumper  {x,y,r,power}                      bumper that kicks marbles away
+ *   rotor   {x,y,len,w,speed,arms}             rotating bar (speed: rad/step)
+ *   box     {x,y,w,h,a}                        rotated block (a: degrees)
+ * The finish funnel is generated automatically (disable with funnel:false)
+ * ========================================================= -->
+<script type="application/json" id="maps-json">
+[
+  {
+    "id": "pinball", "name": "Pinball Party", "desc": "Pin forest + bumpers", "premium": false,
+    "width": 600, "height": 3000, "finishY": 2920,
+    "spawn": { "x0": 30, "x1": 570, "y": 170 },
+    "theme": { "wall": "#7aa2ff", "peg": "#c9d4ff", "bumper": "#ff6bd6", "rotor": "#ffd23f", "field": "#0f1736" },
+    "elements": [
+      { "t": "pegGrid", "x0": 50, "y0": 270, "cols": 11, "rows": 13, "dx": 50, "dy": 56, "r": 5, "stagger": true },
+      { "t": "bumper", "x": 130, "y": 1090, "r": 24 },
+      { "t": "bumper", "x": 300, "y": 1050, "r": 24 },
+      { "t": "bumper", "x": 470, "y": 1090, "r": 24 },
+      { "t": "bumper", "x": 215, "y": 1220, "r": 22 },
+      { "t": "bumper", "x": 385, "y": 1220, "r": 22 },
+      { "t": "wall", "p": [0, 1360, 230, 1460], "w": 12 },
+      { "t": "wall", "p": [600, 1360, 370, 1460], "w": 12 },
+      { "t": "pegGrid", "x0": 50, "y0": 1560, "cols": 11, "rows": 11, "dx": 50, "dy": 56, "r": 5, "stagger": true },
+      { "t": "bumper", "x": 150, "y": 2250, "r": 26 },
+      { "t": "bumper", "x": 450, "y": 2250, "r": 26 },
+      { "t": "bumper", "x": 300, "y": 2380, "r": 28 }
+    ]
+  },
+  {
+    "id": "zigzag", "name": "Zigzag Slopes", "desc": "9 ramps + speed bumps", "premium": false,
+    "width": 600, "height": 3320, "finishY": 3230,
+    "spawn": { "x0": 30, "x1": 570, "y": 170 },
+    "theme": { "wall": "#4de2c5", "peg": "#d8fff7", "bumper": "#ff6bd6", "rotor": "#ffd23f", "field": "#0d1a2e" },
+    "elements": [
+      { "t": "wall", "p": [0, 260, 510, 430], "w": 12 },
+      { "t": "wall", "p": [600, 560, 90, 730], "w": 12 },
+      { "t": "wall", "p": [0, 860, 510, 1030], "w": 12 },
+      { "t": "wall", "p": [600, 1160, 90, 1330], "w": 12 },
+      { "t": "wall", "p": [0, 1460, 510, 1630], "w": 12 },
+      { "t": "wall", "p": [600, 1760, 90, 1930], "w": 12 },
+      { "t": "wall", "p": [0, 2060, 510, 2230], "w": 12 },
+      { "t": "wall", "p": [600, 2360, 90, 2530], "w": 12 },
+      { "t": "wall", "p": [0, 2660, 510, 2830], "w": 12 },
+      { "t": "pegs", "r": 6, "pts": [[170, 277], [340, 333], [430, 577], [260, 633], [170, 877], [340, 933], [430, 1177], [260, 1233], [170, 1477], [340, 1533], [430, 1777], [260, 1833], [170, 2077], [340, 2133], [430, 2377], [260, 2433], [170, 2677], [340, 2733]] }
+    ]
+  },
+  {
+    "id": "windmill", "name": "Windmills", "desc": "Spinning bar obstacles", "premium": false,
+    "width": 600, "height": 3300, "finishY": 3200,
+    "spawn": { "x0": 30, "x1": 570, "y": 170 },
+    "theme": { "wall": "#ff9f5a", "peg": "#ffe3cc", "bumper": "#ff6bd6", "rotor": "#ffd23f", "field": "#1a1430" },
+    "elements": [
+      { "t": "rotor", "x": 150, "y": 380, "len": 170, "speed": 0.035 },
+      { "t": "rotor", "x": 450, "y": 380, "len": 170, "speed": -0.035 },
+      { "t": "pegs", "r": 6, "pts": [[300, 500], [80, 650], [520, 650], [300, 800], [60, 1060], [540, 1060], [300, 1330], [80, 1600], [520, 1600]] },
+      { "t": "rotor", "x": 300, "y": 650, "len": 200, "speed": 0.03 },
+      { "t": "rotor", "x": 150, "y": 920, "len": 170, "speed": -0.04 },
+      { "t": "rotor", "x": 450, "y": 920, "len": 170, "speed": 0.04 },
+      { "t": "rotor", "x": 300, "y": 1190, "len": 220, "speed": -0.03, "arms": 2 },
+      { "t": "rotor", "x": 150, "y": 1460, "len": 170, "speed": 0.045 },
+      { "t": "rotor", "x": 450, "y": 1460, "len": 170, "speed": -0.045 },
+      { "t": "wall", "p": [0, 1680, 200, 1760], "w": 12 },
+      { "t": "wall", "p": [600, 1680, 400, 1760], "w": 12 },
+      { "t": "rotor", "x": 300, "y": 1940, "len": 240, "speed": 0.025, "arms": 2 },
+      { "t": "rotor", "x": 130, "y": 2200, "len": 160, "speed": -0.04 },
+      { "t": "rotor", "x": 470, "y": 2200, "len": 160, "speed": 0.04 },
+      { "t": "rotor", "x": 300, "y": 2450, "len": 200, "speed": 0.035 },
+      { "t": "pegGrid", "x0": 50, "y0": 2600, "cols": 11, "rows": 4, "dx": 50, "dy": 56, "r": 5, "stagger": true }
+    ]
+  },
+  {
+    "id": "chaos", "name": "Chaos Mix", "desc": "Pins, windmills, ramps & bumpers", "premium": true,
+    "width": 600, "height": 3600, "finishY": 3500,
+    "spawn": { "x0": 30, "x1": 570, "y": 170 },
+    "theme": { "wall": "#b38cff", "peg": "#efe6ff", "bumper": "#ff6bd6", "rotor": "#ffd23f", "field": "#170f33" },
+    "elements": [
+      { "t": "pegGrid", "x0": 50, "y0": 260, "cols": 11, "rows": 8, "dx": 50, "dy": 56, "r": 5, "stagger": true },
+      { "t": "rotor", "x": 150, "y": 820, "len": 170, "speed": 0.04 },
+      { "t": "rotor", "x": 450, "y": 820, "len": 170, "speed": -0.04 },
+      { "t": "bumper", "x": 300, "y": 820, "r": 26 },
+      { "t": "wall", "p": [0, 1000, 480, 1150], "w": 12 },
+      { "t": "wall", "p": [600, 1300, 120, 1450], "w": 12 },
+      { "t": "wall", "p": [0, 1600, 480, 1750], "w": 12 },
+      { "t": "box", "x": 240, "y": 1063, "w": 26, "h": 14, "a": 17.4 },
+      { "t": "rotor", "x": 300, "y": 1960, "len": 240, "speed": 0.03, "arms": 2 },
+      { "t": "bumper", "x": 110, "y": 2140, "r": 24 },
+      { "t": "bumper", "x": 490, "y": 2140, "r": 24 },
+      { "t": "pegGrid", "x0": 50, "y0": 2260, "cols": 11, "rows": 8, "dx": 50, "dy": 56, "r": 5, "stagger": true },
+      { "t": "rotor", "x": 150, "y": 2790, "len": 160, "speed": -0.045 },
+      { "t": "rotor", "x": 450, "y": 2790, "len": 160, "speed": 0.045 },
+      { "t": "pegs", "r": 7, "pts": [[300, 2930], [200, 3030], [400, 3030]] }
+    ]
+  },
+  {
+    "id": "plinko", "name": "Plinko Tower", "desc": "Extra-tall pin tower", "premium": true,
+    "width": 600, "height": 4200, "finishY": 4100,
+    "spawn": { "x0": 30, "x1": 570, "y": 170 },
+    "theme": { "wall": "#5ad1ff", "peg": "#e2f6ff", "bumper": "#ff6bd6", "rotor": "#ffd23f", "field": "#0b1a33" },
+    "elements": [
+      { "t": "pegGrid", "x0": 50, "y0": 260, "cols": 11, "rows": 30, "dx": 50, "dy": 56, "r": 5, "stagger": true },
+      { "t": "rotor", "x": 150, "y": 2050, "len": 170, "speed": 0.04 },
+      { "t": "rotor", "x": 450, "y": 2050, "len": 170, "speed": -0.04 },
+      { "t": "pegGrid", "x0": 50, "y0": 2200, "cols": 11, "rows": 24, "dx": 50, "dy": 56, "r": 5, "stagger": true },
+      { "t": "bumper", "x": 300, "y": 3620, "r": 28 },
+      { "t": "bumper", "x": 140, "y": 3640, "r": 22 },
+      { "t": "bumper", "x": 460, "y": 3640, "r": 22 }
+    ]
+  }
+]
+</script>
+
+<script>
+'use strict';
+/* =========================================================
+ * 0. CONFIG — edit only this block before deploying
+ * ========================================================= */
+const CONFIG = {
+  // 'donation' : everything free + voluntary tips only (no locked features)
+  // 'premium'  : free / premium tiers (Lemon Squeezy license keys)
+  monetization: 'donation',
+
+  // Tip links — buttons with an empty value are hidden
+  donate: {
+    kofi: 'https://ko-fi.com/clarkpark',   // e.g. 'https://ko-fi.com/yourname'
+    bmac: '',   // e.g. 'https://buymeacoffee.com/yourname'
+  },
+
+  // Lemon Squeezy (used only when monetization === 'premium')
+  lemon: {
+    checkoutUrl: 'https://YOUR-STORE.lemonsqueezy.com/buy/YOUR-VARIANT-ID',
+    productId: '',          // Product ID from the dashboard. Empty = skip product check
+    storeId: '',            // Store ID. Empty = skip check
+    validateUrl: 'https://api.lemonsqueezy.com/v1/licenses/validate',
+    offlineGraceDays: 7,    // keep premium this long after the last check if offline
+  },
+
+  tiers: {
+    free:    { maxMarbles: 30,   bitrate: 2_500_000 },
+    premium: { maxMarbles: 1000, bitrate: 8_000_000 },
+  },
+
+  thanksToastAfter: 10,     // show a one-time thank-you toast after N draws
+
+  physics: {
+    stepMs: 1000 / 60,      // fixed timestep (the key to reproducibility)
+    marbleR: 9,
+    gravityScale: 0.00035,  // gravity (Matter default 0.001) — controls race length
+    airFriction: 0.004,
+    marbleFriction: 0.0005,
+    restingThreshTangent: 0.01,
+    maxSpeed: 7,            // speed cap against tunnelling + pacing (px/step)
+    stuckCheckEvery: 30,    // check for stuck marbles every 30 steps (0.5 s)
+    stuckDist: 2.5,         // moving less than this counts as stuck
+    stuckChecks: 4,         // after 4 checks in a row (~2 s), give a seeded nudge
+    timeoutSec: 240,        // safety net: after 4 min, rank by current position
+  },
+};
+
+/* =========================================================
+ * 1. UTIL — seeded RNG, hashing, storage, encoding
+ * ========================================================= */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hash32(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
+const hex8 = n => (n >>> 0).toString(16).toUpperCase().padStart(8, '0');
+function newSeed() { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0]; }
+function seededShuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('mr.en.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('mr.en.' + k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem('mr.en.' + k); } catch (e) {} },
+};
+function b64uEncode(str) {
+  const bytes = new TextEncoder().encode(str); let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64uDecode(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
+  return new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+}
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const $ = id => document.getElementById(id);
+const MAPS = JSON.parse($('maps-json').textContent);
+const mapById = id => MAPS.find(m => m.id === id) || MAPS[0];
+
+/* =========================================================
+ * 2. INPUT — list parsing, CSV normalisation, duplicate detection
+ * ========================================================= */
+function splitCSVLine(line) {
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ',' || c === '\t' || c === ';') { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+/** Pasted table/CSV → one name per line. "Name,3" becomes "Name*3"; header rows are skipped */
+function normalizeTable(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  const out = [];
+  lines.forEach((line, li) => {
+    const cells = splitCSVLine(line).filter(Boolean);
+    if (!cells.length) return;
+    if (li === 0 && /^(name|names|이름|참가자|성명)$/i.test(cells[0])) return;
+    if (cells.length === 2 && /^\d+$/.test(cells[1])) out.push(`${cells[0]}*${cells[1]}`);
+    else out.push(...cells);
+  });
+  return out.join('\n');
+}
+/** Parse "Alice*3@#ff0000" → [{name, weight, color}] */
+function parseEntries(text) {
+  const entries = [];
+  for (const raw of text.split(/[\n,;\t]+/)) {
+    let s = raw.trim().replace(/^"+|"+$/g, '').trim(); if (!s) continue;
+    let weight = 1, color = null, m;
+    for (let k = 0; k < 2; k++) {
+      if ((m = s.match(/\*\s*(\d+)\s*$/))) { weight = clamp(parseInt(m[1], 10) || 1, 1, 100); s = s.slice(0, m.index).trim(); }
+      else if ((m = s.match(/@\s*(#[0-9a-f]{6}|#[0-9a-f]{3})\s*$/i))) { color = m[1]; s = s.slice(0, m.index).trim(); }
+    }
+    if (s) entries.push({ name: s.slice(0, 24), weight, color });
+  }
+  return entries;
+}
+const canonicalText = entries => entries.map(e => e.name + (e.weight > 1 ? '*' + e.weight : '') + (e.color ? '@' + e.color : '')).join('\n');
+/** Golden-angle palette that skips the green (chroma-key) band */
+function autoColor(i) {
+  const h = (165 + (i * 137.508) % 290) % 360;
+  return `hsl(${h.toFixed(1)},80%,${i % 2 ? 66 : 58}%)`;
+}
+function buildMarbles(entries, allowColor) {
+  const idx = new Map(), people = [];
+  for (const e of entries) {
+    if (!idx.has(e.name)) { idx.set(e.name, people.length); people.push({ name: e.name, weight: 0, color: null }); }
+    const p = people[idx.get(e.name)];
+    p.weight += e.weight;
+    if (allowColor && e.color) p.color = e.color;
+  }
+  people.forEach((p, i) => { if (!p.color) p.color = autoColor(i); });
+  const marbles = [];
+  people.forEach((p, pi) => { for (let k = 0; k < p.weight; k++) marbles.push({ id: marbles.length, name: p.name, color: p.color, person: pi }); });
+  return { people, marbles };
+}
+function findDuplicates(entries) {
+  const cnt = new Map();
+  entries.forEach(e => cnt.set(e.name, (cnt.get(e.name) || 0) + 1));
+  return [...cnt].filter(([, c]) => c > 1);
+}
+
+/* =========================================================
+ * 3. PHYSICS — Matter.js, fixed timestep, seeded anti-stuck
+ *    same (map, marbles, seed) → same result
+ * ========================================================= */
+const { Engine, Bodies, Body, Composite, Events, Common } = Matter;
+
+class Sim {
+  constructor(map, marbles, seed) {
+    const P = CONFIG.physics;
+    this.map = map; this.marbles = marbles; this.seed = seed >>> 0; this.R = P.marbleR;
+    // Determinism: reset Matter's internal id counter and seed every time (fixes pair ordering)
+    Common._nextId = 0; Common._seed = this.seed || 1;
+    // stop slow contacts from building up friction and 'sticking' to ramps
+    Matter.Resolver._restingThreshTangent = P.restingThreshTangent;
+    this.engine = Engine.create({ positionIterations: 8, velocityIterations: 6, enableSleeping: false });
+    this.engine.gravity.y = 1; this.engine.gravity.scale = P.gravityScale;
+    this.world = this.engine.world;
+    this.shapes = []; this.rotors = []; this.kicks = [];
+    this.steps = 0; this.finishOrder = []; this.nudges = 0; this.onFinish = null; this.onHit = null;
+    this.rngStuck = mulberry32((this.seed ^ 0x9E3779B9) >>> 0);
+    this._buildMap();
+    this._spawn();
+  }
+
+  _wall(x1, y1, x2, y2, w) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const b = Bodies.rectangle((x1 + x2) / 2, (y1 + y2) / 2, len + w, w, {
+      isStatic: true, angle: Math.atan2(y2 - y1, x2 - x1), friction: 0.01, frictionStatic: 0, restitution: 0.3,
+      chamfer: { radius: w / 2 - 0.5 }, label: 'wall' });
+    Composite.add(this.world, b);
+    this.shapes.push({ k: 'wall', x1, y1, x2, y2, w, minY: Math.min(y1, y2) - w, maxY: Math.max(y1, y2) + w });
+  }
+  _peg(x, y, r) {
+    Composite.add(this.world, Bodies.circle(x, y, r, { isStatic: true, restitution: 0.5, friction: 0.01, frictionStatic: 0, label: 'peg' }));
+    this.shapes.push({ k: 'peg', x, y, r, minY: y - r, maxY: y + r });
+  }
+
+  _buildMap() {
+    const m = this.map, W = m.width;
+    for (const e of m.elements) {
+      switch (e.t) {
+        case 'wall': for (let i = 0; i + 3 < e.p.length; i += 2) this._wall(e.p[i], e.p[i + 1], e.p[i + 2], e.p[i + 3], e.w || 12); break;
+        case 'peg': this._peg(e.x, e.y, e.r || 6); break;
+        case 'pegs': for (const [x, y] of e.pts) this._peg(x, y, e.r || 6); break;
+        case 'pegGrid':
+          for (let r = 0; r < e.rows; r++) for (let c = 0; c < e.cols; c++) {
+            const x = e.x0 + c * e.dx + (e.stagger && r % 2 ? e.dx / 2 : 0);
+            if (x > W - e.r - 4) continue;
+            this._peg(x, e.y0 + r * e.dy, e.r || 5);
+          }
+          break;
+        case 'bumper': {
+          const b = Bodies.circle(e.x, e.y, e.r, { isStatic: true, restitution: 0.9, label: 'bumper' });
+          const shape = { k: 'bumper', x: e.x, y: e.y, r: e.r, power: e.power || 9, hitAt: -999, minY: e.y - e.r, maxY: e.y + e.r };
+          b.shape = shape; Composite.add(this.world, b); this.shapes.push(shape); break;
+        }
+        case 'rotor': {
+          const len = e.len, w = e.w || 12, arms = e.arms || 1, parts = [];
+          for (let a = 0; a < arms; a++) parts.push(Bodies.rectangle(e.x, e.y, len, w, { angle: (Math.PI / arms) * a, chamfer: { radius: w / 2 - 0.5 } }));
+          const b = arms === 1 ? parts[0] : Body.create({ parts });
+          Body.setStatic(b, true); b.label = 'rotor'; b.friction = 0.05; b.frictionStatic = 0; b.restitution = 0.4;
+          Composite.add(this.world, b);
+          const shape = { k: 'rotor', body: b, x: e.x, y: e.y, len, minY: e.y - len / 2 - w, maxY: e.y + len / 2 + w };
+          this.rotors.push({ body: b, speed: e.speed || 0.03, a0: b.angle }); this.shapes.push(shape); break;
+        }
+        case 'box': {
+          const b = Bodies.rectangle(e.x, e.y, e.w, e.h, { isStatic: true, angle: (e.a || 0) * Math.PI / 180, frictionStatic: 0, label: 'box' });
+          Composite.add(this.world, b);
+          const ext = Math.hypot(e.w, e.h) / 2;
+          this.shapes.push({ k: 'box', body: b, minY: e.y - ext, maxY: e.y + ext }); break;
+        }
+      }
+    }
+    // finish funnel (automatic)
+    if (m.funnel !== false) {
+      const gap = m.funnelGap || 70, fh = m.funnelHeight || 300, fy0 = m.finishY - fh;
+      this._wall(0, fy0, W / 2 - gap / 2, m.finishY, 12);
+      this._wall(W, fy0, W / 2 + gap / 2, m.finishY, 12);
+      this.funnel = { gap, fy0 };
+    }
+  }
+
+  _spawn() {
+    const P = CONFIG.physics, sp = this.map.spawn, W = this.map.width, R = this.R, gap = R * 2 + 4;
+    const cols = Math.max(1, Math.floor((sp.x1 - sp.x0) / gap)), n = this.marbles.length;
+    const rows = Math.ceil(n / cols);
+    const rng = mulberry32(this.seed);
+    const order = seededShuffle(this.marbles.map((_, i) => i), rng); // the seed decides start positions
+    this.bodies = new Array(n);
+    order.forEach((mi, slot) => {
+      const row = Math.floor(slot / cols), col = slot % cols;
+      const inRow = Math.min(cols, n - row * cols);
+      const x = (sp.x0 + sp.x1) / 2 - (inRow - 1) * gap / 2 + col * gap + (rng() - 0.5) * 2;
+      const y = sp.y - row * gap;
+      const b = Bodies.circle(x, y, R, { restitution: 0.4, friction: P.marbleFriction, frictionStatic: 0, frictionAir: P.airFriction, density: 0.002, label: 'marble' });
+      Body.setInertia(b, Infinity); // no rotation: avoids Matter's rolling drag stalling marbles on gentle slopes
+      b.mi = mi; this.bodies[mi] = b;
+    });
+    // add in id order (determinism)
+    for (const b of this.bodies) Composite.add(this.world, b);
+    this.topY = sp.y - rows * gap - 40;
+    this.spawnCenterY = sp.y - (rows * gap) / 2;
+    // side and ceiling walls
+    const H = this.map.height, top = this.topY - 60;
+    Composite.add(this.world, [
+      Bodies.rectangle(-25, (top + H) / 2, 50, H - top + 200, { isStatic: true, friction: 0.01, frictionStatic: 0, label: 'side' }),
+      Bodies.rectangle(W + 25, (top + H) / 2, 50, H - top + 200, { isStatic: true, friction: 0.01, frictionStatic: 0, label: 'side' }),
+      Bodies.rectangle(W / 2, top - 25, W + 100, 50, { isStatic: true, friction: 0.01, frictionStatic: 0, label: 'side' }),
+    ]);
+    this.active = n;
+    this.lastPos = this.bodies.map(b => ({ x: b.position.x, y: b.position.y }));
+    this.stuck = new Array(n).fill(0); this.kickCount = new Array(n).fill(0);
+
+    Events.on(this.engine, 'collisionStart', ev => {
+      for (const p of ev.pairs) {
+        const a = p.bodyA.parent || p.bodyA, b = p.bodyB.parent || p.bodyB;
+        const m = a.label === 'marble' ? a : b.label === 'marble' ? b : null;
+        if (!m) continue;
+        const o = m === a ? b : a;
+        if (o.label === 'bumper') this.kicks.push([m, o]);
+        if (this.onHit) this.onHit(o.label, Math.hypot(m.velocity.x, m.velocity.y));
+      }
+    });
+  }
+
+  stepOnce() {
+    const P = CONFIG.physics, t = this.steps, W = this.map.width;
+    for (const r of this.rotors) { Body.setAngle(r.body, r.a0 + r.speed * t); Body.setAngularVelocity(r.body, r.speed); }
+    Engine.update(this.engine, P.stepMs);
+    this.steps++;
+    // bumper kicks (applied after the update → deterministic)
+    for (const [m, bp] of this.kicks) {
+      if (m.finished) continue;
+      const dx = m.position.x - bp.position.x, dy = m.position.y - bp.position.y, d = Math.hypot(dx, dy) || 1;
+      Body.setVelocity(m, { x: dx / d * bp.shape.power, y: dy / d * bp.shape.power });
+      bp.shape.hitAt = this.steps;
+    }
+    this.kicks.length = 0;
+
+    for (let i = 0; i < this.bodies.length; i++) {
+      const b = this.bodies[i]; if (b.finished) continue;
+      const v = b.velocity, sp = Math.hypot(v.x, v.y);
+      if (sp > P.maxSpeed) Body.setVelocity(b, { x: v.x / sp * P.maxSpeed, y: v.y / sp * P.maxSpeed });
+      if (b.position.y > this.map.finishY) {
+        b.finished = true; this.finishOrder.push(i); Composite.remove(this.world, b); this.active--;
+        if (this.onFinish) this.onFinish(i, this.finishOrder.length);
+      } else if (b.position.x < -60 || b.position.x > W + 60 || b.position.y > this.map.height + 60) {
+        Body.setPosition(b, { x: W / 2, y: this.map.spawn.y }); Body.setVelocity(b, { x: 0, y: 0 }); // recover escaped marbles
+      }
+    }
+
+    // Anti-stuck: nudge stuck marbles using the seeded RNG
+    if (this.steps % P.stuckCheckEvery === 0) {
+      for (let i = 0; i < this.bodies.length; i++) {
+        const b = this.bodies[i]; if (b.finished) continue;
+        const lp = this.lastPos[i];
+        if (Math.hypot(b.position.x - lp.x, b.position.y - lp.y) < P.stuckDist) {
+          if (++this.stuck[i] >= P.stuckChecks) {
+            const r = this.rngStuck, pow = 1 + Math.min(this.kickCount[i], 4) * 0.5;
+            Body.setVelocity(b, { x: (r() - 0.5) * 6 * pow, y: -(2 + r() * 3) * pow });
+            this.stuck[i] = 0; this.kickCount[i]++; this.nudges++;
+          }
+        } else { this.stuck[i] = 0; this.kickCount[i] = Math.max(0, this.kickCount[i] - 1); }
+        lp.x = b.position.x; lp.y = b.position.y;
+      }
+    }
+  }
+
+  /** finish order, then unfinished marbles by progress (y) */
+  ranking() {
+    const act = [];
+    for (let i = 0; i < this.bodies.length; i++) if (!this.bodies[i].finished) act.push(i);
+    act.sort((a, b) => (this.bodies[b].position.y - this.bodies[a].position.y) || (a - b));
+    return this.finishOrder.concat(act);
+  }
+}
+
+/* --- Race rules: end check and result (independent of rendering → identical headless) --- */
+function isRaceOver(sim, people, mode, k) {
+  if (sim.steps > CONFIG.physics.timeoutSec * 60) return true;
+  const persons = new Set(sim.finishOrder.map(i => sim.marbles[i].person));
+  switch (mode) {
+    case 'first': return persons.size >= 1;
+    case 'nwin': return persons.size >= Math.min(k, people.length);
+    case 'last': return sim.active <= 1;
+    case 'teams': return persons.size >= people.length;
+  }
+  return sim.active === 0;
+}
+function computeResult(sim, people, mode, k) {
+  const order = sim.ranking(); // unfinished marbles ranked by position
+  const personOrder = [], seen = new Set();
+  for (const i of order) { const p = sim.marbles[i].person; if (!seen.has(p)) { seen.add(p); personOrder.push(p); } }
+  const name = p => people[p].name;
+  let winners = [], teams = null;
+  if (mode === 'first') winners = [personOrder[0]];
+  else if (mode === 'nwin') winners = personOrder.slice(0, Math.min(k, people.length));
+  else if (mode === 'last') winners = [sim.marbles[order[order.length - 1]].person];
+  else if (mode === 'teams') { teams = Array.from({ length: k }, () => []); personOrder.forEach((p, i) => teams[i % k].push(p)); }
+  return {
+    mode, k, winners, teams, order, personOrder,
+    winnerNames: winners.map(name), teamNames: teams && teams.map(t => t.map(name)),
+    orderNames: order.map(i => sim.marbles[i].name),
+    code: hex8(hash32(order.join(','))), steps: sim.steps, nudges: sim.nudges,
+  };
+}
+/** Simulate to the end without rendering (verification / tests) */
+function simulateHeadless(map, entries, seed, mode, k) {
+  const { people, marbles } = buildMarbles(entries, false);
+  const sim = new Sim(map, marbles, seed);
+  while (!isRaceOver(sim, people, mode, k)) sim.stepOnce();
+  return computeResult(sim, people, mode, k);
+}
+
+/* =========================================================
+ * 4. AUDIO — sound effects synthesised with Web Audio
+ * ========================================================= */
+const Sound = {
+  ctx: null, master: null, dest: null, muted: store.get('muted', false), lastTick: 0,
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    this.ctx = new AC(); this.master = this.ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : 0.5; this.master.connect(this.ctx.destination);
+    try { this.dest = this.ctx.createMediaStreamDestination(); this.master.connect(this.dest); } catch (e) {}
+  },
+  setMuted(m) { this.muted = m; store.set('muted', m); if (this.master) this.master.gain.value = m ? 0 : 0.5; },
+  tone(freq, dur, type = 'sine', vol = 0.2, when = 0, slide = 0) {
+    const c = this.ctx; if (!c || this.muted) return;
+    const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t + dur + 0.03);
+  },
+  tick(v) { const n = performance.now(); if (n - this.lastTick < 38) return; this.lastTick = n; this.tone(900 + Math.random() * 900, 0.04, 'triangle', 0.03 + 0.06 * Math.min(1, v / 10)); },
+  bump() { this.tone(180, 0.14, 'square', 0.07, 0, 2.4); },
+  ding(n) { this.tone(660 * Math.pow(2, ((n - 1) % 8) / 12), 0.28, 'sine', 0.14); },
+  beep(hi) { this.tone(hi ? 880 : 440, hi ? 0.4 : 0.15, 'square', 0.1); },
+  fanfare() {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.tone(f, 0.32, 'triangle', 0.18, i * 0.11));
+    this.tone(1046.5, 0.9, 'sine', 0.14, 0.46); this.tone(1318.5, 0.9, 'sine', 0.1, 0.46);
+  },
+};
+
+/* =========================================================
+ * 5. RENDER — camera, map/marbles/labels, HUD, confetti
+ * ========================================================= */
+const canvas = $('cv'), ctx = canvas.getContext('2d');
+const Confetti = {
+  parts: [],
+  burst(cw, ch, colors) {
+    const n = matchMedia('(prefers-reduced-motion: reduce)').matches ? 50 : 200;
+    const pal = colors.concat(['#ffd23f', '#ffffff', '#4de2c5', '#ff6bd6']);
+    for (let i = 0; i < n; i++) {
+      const fromLeft = i % 2 === 0;
+      this.parts.push({
+        x: fromLeft ? -10 : cw + 10, y: ch * (0.55 + Math.random() * 0.3),
+        vx: (fromLeft ? 1 : -1) * (180 + Math.random() * 380), vy: -(320 + Math.random() * 420),
+        r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 12, w: 6 + Math.random() * 7, h: 4 + Math.random() * 4,
+        c: pal[i % pal.length], life: 3.5 + Math.random() * 2,
+      });
+    }
+  },
+  update(dt) {
+    for (const p of this.parts) { p.vy += 620 * dt; p.vx *= 0.99; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt; p.life -= dt; }
+    this.parts = this.parts.filter(p => p.life > 0);
+  },
+  draw(c) {
+    for (const p of this.parts) {
+      c.save(); c.translate(p.x, p.y); c.rotate(p.r); c.globalAlpha = Math.min(1, p.life);
+      c.fillStyle = p.c; c.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2))); c.restore();
+    }
+  },
+};
+
+function resizeCanvas() {
+  const r = $('stage').getBoundingClientRect();
+  S.dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.round(r.width * S.dpr)); canvas.height = Math.max(1, Math.round(r.height * S.dpr));
+}
+
+function viewParams() {
+  const cw = canvas.width / S.dpr, ch = canvas.height / S.dpr, W = S.map.width;
+  const pad = !S.streamer && cw > 760 ? 232 : 0; // wide screens: leave room for the ranking sidebar
+  const vw = cw - pad, base = Math.min(vw / W, ch / 560), s = base * S.cam.zoom;
+  return { cw, ch, vw, s, hw: vw / (2 * s), hh: ch / (2 * s) };
+}
+
+function updateCamera(dt) {
+  const sim = S.sim; if (!sim) return;
+  const map = S.map; let tx = map.width / 2, ty = sim.spawnCenterY + 120, tz = 1, tslow = 1;
+  if (S.state === 'running' || S.state === 'done') {
+    let lead = null, trail = null;
+    for (const b of sim.bodies) {
+      if (b.finished) continue;
+      if (!lead || b.position.y > lead.position.y) lead = b;
+      if (!trail || b.position.y < trail.position.y) trail = b;
+    }
+    let target = lead;
+    if (S.mode === 'last' && sim.active <= 3) target = trail;
+    S.focus = target;
+    if (S.state === 'done') { tx = map.width / 2; ty = map.finishY - 80; tz = 1.15; }
+    else if (!target) { ty = map.finishY; }
+    else {
+      tx = target.position.x; ty = target.position.y + 110;
+      // close to the finish and the result is on the line → slow motion & zoom
+      const persons = new Set(sim.finishOrder.map(i => S.marbles[i].person)).size;
+      const decisive = S.mode === 'first' ? persons === 0
+        : S.mode === 'nwin' ? persons < S.k
+        : S.mode === 'last' ? sim.active <= 3 : false;
+      if (decisive && map.finishY - target.position.y < 260) { tz = 1.7; tslow = 0.3; }
+    }
+  } else S.focus = null;
+  const k1 = 1 - Math.exp(-dt * 3.5), k2 = 1 - Math.exp(-dt * 2.5), k3 = 1 - Math.exp(-dt * 4);
+  S.cam.x += (tx - S.cam.x) * k1; S.cam.y += (ty - S.cam.y) * k1;
+  S.cam.zoom += (tz - S.cam.zoom) * k2; S.cam.slow += (tslow - S.cam.slow) * k3;
+}
+
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); }
+
+function render(dt) {
+  const sim = S.sim, map = S.map; if (!sim) return;
+  const { cw, ch, vw, s, hw, hh } = viewParams(), streamer = S.streamer, th = map.theme || {};
+  ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+  ctx.fillStyle = streamer ? '#00B140' : '#070b18'; ctx.fillRect(0, 0, cw, ch);
+
+  const cx = hw * 2 >= map.width ? map.width / 2 : clamp(S.cam.x, hw, map.width - hw);
+  const cy = clamp(S.cam.y, sim.topY - 30 + hh, Math.max(sim.topY - 30 + hh, map.height - hh));
+  const y0 = cy - hh, y1 = cy + hh;
+
+  ctx.save();
+  ctx.translate(vw / 2, ch / 2); ctx.scale(s, s); ctx.translate(-cx, -cy);
+
+  // field background + progress markers
+  if (!streamer) {
+    ctx.fillStyle = th.field || '#0f1736'; ctx.fillRect(0, Math.max(y0, sim.topY - 60), map.width, y1 - y0 + 60);
+    ctx.font = `700 ${11 / s}px ui-monospace,monospace`; ctx.textAlign = 'left';
+    const span = map.finishY - map.spawn.y;
+    for (let p = 0.25; p < 1; p += 0.25) {
+      const yy = map.spawn.y + span * p; if (yy < y0 - 20 || yy > y1 + 20) continue;
+      ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 2 / s; ctx.setLineDash([10 / s, 10 / s]);
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(map.width, yy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillText(`${p * 100}%`, 6, yy - 5 / s);
+    }
+  }
+
+  // outer side walls
+  ctx.fillStyle = streamer ? '#ffffff' : th.wall || '#7aa2ff';
+  ctx.fillRect(-6, Math.max(y0, sim.topY - 60), 6, y1 - y0 + 60); ctx.fillRect(map.width, Math.max(y0, sim.topY - 60), 6, y1 - y0 + 60);
+
+  // static elements (only those on screen)
+  ctx.lineCap = 'round';
+  for (const sh of sim.shapes) {
+    if (sh.maxY < y0 - 20 || sh.minY > y1 + 20) continue;
+    switch (sh.k) {
+      case 'wall':
+        ctx.strokeStyle = streamer ? '#ffffff' : th.wall || '#7aa2ff'; ctx.lineWidth = sh.w;
+        ctx.beginPath(); ctx.moveTo(sh.x1, sh.y1); ctx.lineTo(sh.x2, sh.y2); ctx.stroke(); break;
+      case 'peg':
+        ctx.fillStyle = streamer ? '#ffffff' : th.peg || '#c9d4ff';
+        ctx.beginPath(); ctx.arc(sh.x, sh.y, sh.r, 0, 6.2832); ctx.fill(); break;
+      case 'bumper': {
+        const flash = Math.max(0, 1 - (sim.steps - sh.hitAt) / 12);
+        ctx.fillStyle = th.bumper || '#ff6bd6'; ctx.globalAlpha = 0.25 + flash * 0.5;
+        ctx.beginPath(); ctx.arc(sh.x, sh.y, sh.r + 4 + flash * 6, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(sh.x, sh.y, sh.r, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sh.x, sh.y, sh.r * 0.42, 0, 6.2832); ctx.fill(); break;
+      }
+      case 'rotor': case 'box': {
+        const b = sh.body, parts = b.parts.length > 1 ? b.parts.slice(1) : [b];
+        ctx.fillStyle = sh.k === 'rotor' ? (th.rotor || '#ffd23f') : (streamer ? '#fff' : th.wall || '#7aa2ff');
+        for (const p of parts) {
+          ctx.beginPath(); p.vertices.forEach((v, i) => i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y)); ctx.closePath(); ctx.fill();
+        }
+        if (sh.k === 'rotor') { ctx.fillStyle = '#1b1300'; ctx.beginPath(); ctx.arc(sh.x, sh.y, 5, 0, 6.2832); ctx.fill(); }
+        break;
+      }
+    }
+  }
+
+  // finish line (checkered)
+  if (map.finishY > y0 - 40 && map.finishY < y1 + 40) {
+    const gap = sim.funnel ? sim.funnel.gap : map.width, x0 = map.width / 2 - gap / 2, sq = 7;
+    for (let i = 0; i * sq < gap; i++) for (let j = 0; j < 2; j++) {
+      ctx.fillStyle = (i + j) % 2 ? '#111' : '#fff'; ctx.fillRect(x0 + i * sq, map.finishY + j * sq, sq, sq);
+    }
+    ctx.fillStyle = streamer ? '#fff' : '#ffd23f'; ctx.font = `800 ${14 / s * Math.min(1.4, S.cam.zoom)}px 'Black Han Sans',sans-serif`;
+    ctx.textAlign = 'center'; ctx.fillText('FINISH', map.width / 2, map.finishY + 34);
+  }
+
+  // marbles
+  const R = sim.R, n = sim.bodies.length;
+  for (const b of sim.bodies) {
+    if (b.finished) continue; const p = b.position;
+    if (p.y < y0 - R * 3 || p.y > y1 + R * 3) continue;
+    const m = S.marbles[b.mi];
+    ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, 6.2832); ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(p.x - R * 0.33, p.y - R * 0.33, R * 0.32, 0, 6.2832); ctx.fill();
+    if (b === S.focus) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, R + 5, 0, 6.2832); ctx.stroke(); }
+  }
+  // name labels (top of the pack only when crowded)
+  const labelFor = new Set();
+  if (n <= 60) sim.bodies.forEach((b, i) => labelFor.add(i));
+  else (S.rankCache || []).slice(0, 20).forEach(i => labelFor.add(i));
+  const fs = (streamer ? 18 : 12) / s * (1 + (S.cam.zoom - 1) * 0.45);
+  ctx.font = `800 ${fs}px 'Noto Sans KR',sans-serif`; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  ctx.lineWidth = fs * 0.3; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.fillStyle = '#fff';
+  for (const i of labelFor) {
+    const b = sim.bodies[i]; if (!b || b.finished) continue; const p = b.position;
+    if (p.y < y0 - 30 || p.y > y1 + 30) continue;
+    const t = S.marbles[i].name; ctx.strokeText(t, p.x, p.y - R - 4); ctx.fillText(t, p.x, p.y - R - 4);
+  }
+  ctx.restore();
+
+  // ---- HUD (screen coordinates) ----
+  const big = streamer ? 1.6 : 1;
+  ctx.textAlign = 'left'; ctx.font = `700 ${12 * big}px ui-monospace,monospace`;
+  const hud = `${map.name} · SEED #${hex8(S.seed)}`;
+  const tw = ctx.measureText(hud).width;
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; roundRect(ctx, 10, 10, tw + 16, 24 * big, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillText(hud, 18, 10 + 16.5 * big);
+  if (S.state === 'running' || S.state === 'done') {
+    const t2 = `🏁 ${sim.finishOrder.length}/${n}`;
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; roundRect(ctx, 10, 14 + 24 * big, ctx.measureText(t2).width + 16, 24 * big, 8); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(t2, 18, 14 + 24 * big + 16.5 * big);
+  }
+  if (S.cam.slow < 0.6 && S.state === 'running') {
+    ctx.textAlign = 'center'; ctx.font = `800 ${16 * big}px 'Black Han Sans',sans-serif`;
+    ctx.fillStyle = `rgba(255,210,63,${0.6 + 0.4 * Math.sin(performance.now() / 120)})`;
+    ctx.fillText('SLOW-MOTION', cw / 2, 30 * big);
+  }
+  if (S.logoImg) { const lw = 56 * big; ctx.globalAlpha = 0.9; ctx.drawImage(S.logoImg, cw - lw - 12 - (streamer ? 0 : 0), ch - lw - 12, lw, lw); ctx.globalAlpha = 1; }
+  if (needsWatermark()) {
+    ctx.textAlign = 'right'; ctx.font = `700 11px 'Noto Sans KR',sans-serif`; ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.fillText('Marble Roulette+ · Free', cw - 10, ch - 10);
+  }
+  // countdown
+  if (S.state === 'countdown') {
+    const v = Math.ceil(S.countdownT);
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, cw, ch);
+    ctx.font = `400 ${Math.min(cw, ch) * 0.3}px 'Black Han Sans',sans-serif`; ctx.fillStyle = '#ffd23f';
+    ctx.fillText(v > 0 ? v : 'GO!', cw / 2, ch / 2 + Math.min(cw, ch) * 0.1);
+    ctx.font = `700 ${14 * big}px ui-monospace,monospace`; ctx.fillStyle = '#fff';
+    ctx.fillText(`SEED #${hex8(S.seed)} · ${n} marbles`, cw / 2, ch / 2 + Math.min(cw, ch) * 0.2);
+  }
+  // result banner (drawn on the canvas so it shows in recordings/streams)
+  if (S.state === 'done' && S.result) drawResultBanner(cw, ch, big);
+  Confetti.update(dt); Confetti.draw(ctx);
+}
+
+function drawResultBanner(cw, ch, big) {
+  const r = S.result, lines = [];
+  const title = { first: '🏆 Winner', last: '🐢 Last place', nwin: `🎉 ${r.winnerNames.length} winners`, teams: `👥 Teams` }[r.mode];
+  if (r.mode === 'teams') r.teamNames.slice(0, 6).forEach((t, i) => lines.push(`Team ${i + 1}: ${t.join(', ')}`));
+  else lines.push(r.winnerNames.join(', '));
+  const fsT = 22 * big, fsL = (r.mode === 'teams' ? 15 : 30) * big, pad = 16;
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${fsL}px 'Noto Sans KR',sans-serif`;
+  const maxW = Math.min(cw - 24, Math.max(240, ...lines.map(l => ctx.measureText(l).width + pad * 2)));
+  const h = fsT + 14 + lines.length * fsL * 1.35 + pad * 2, x = (cw - maxW) / 2, y = ch * 0.5 - h / 2;
+  ctx.fillStyle = 'rgba(8,12,30,.86)'; roundRect(ctx, x, y, maxW, h, 16); ctx.fill();
+  ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ffd23f'; ctx.font = `400 ${fsT}px 'Black Han Sans',sans-serif`;
+  ctx.fillText(title, cw / 2, y + pad + fsT * 0.85);
+  ctx.fillStyle = '#fff'; ctx.font = `800 ${fsL}px 'Noto Sans KR',sans-serif`;
+  lines.forEach((l, i) => {
+    let t = l; while (ctx.measureText(t).width > maxW - pad * 2 && t.length > 4) t = t.slice(0, -2);
+    if (t !== l) t = t.slice(0, -1) + '…';
+    ctx.fillText(t, cw / 2, y + pad + fsT + 14 + fsL * (i + 1) * 1.3 - fsL * 0.25);
+  });
+}
+
+/* =========================================================
+ * 6. UI — state, controls, ranking, results, history, keyboard
+ * ========================================================= */
+const S = {
+  state: 'idle',              // idle | countdown | running | done
+  seed: newSeed(), mapId: store.get('map', 'pinball'), mode: store.get('mode', 'first'), k: store.get('k', 2),
+  speed: store.get('speed', 1), streamer: false, premium: false,
+  entries: [], people: [], marbles: [], sim: null, map: null, result: null, verify: null,
+  cam: { x: 300, y: 0, zoom: 1, slow: 1 }, acc: 0, countdownT: 0, dpr: 1, rankCache: [], focus: null, logoImg: null,
+};
+
+function setSeed(v) { S.seed = v >>> 0; $('seedIn').value = hex8(S.seed); $('seedChip').textContent = `SEED #${hex8(S.seed)}`; }
+
+function readInput() {
+  S.entries = parseEntries($('names').value);
+  const allowColor = Premium.isOn();
+  const built = buildMarbles(S.entries, allowColor);
+  S.people = built.people; S.marbles = built.marbles;
+  const max = Premium.maxMarbles();
+  const over = !S.verify && S.marbles.length > max;
+  $('count').innerHTML = `${S.people.length} players · <b style="color:${over ? 'var(--danger)' : 'inherit'}">${S.marbles.length}</b>${Premium.enabled() && !Premium.isOn() ? ` / ${max}` : ''} marbles`;
+  // duplicate detection
+  const dups = findDuplicates(S.entries), dw = $('dupWarn');
+  if (dups.length) {
+    dw.hidden = false;
+    dw.innerHTML = `⚠️ Duplicate names: ${dups.map(([n, c]) => `<b>${escapeHtml(n)}</b>×${c}`).join(', ')} — currently counted as one person.
+      <div class="row"><button type="button" class="btn sm" id="dupMerge">Merge into one (Name*N)</button>
+      <button type="button" class="btn sm ghost" id="dupSplit">Keep separate (add numbers)</button></div>`;
+    $('dupMerge').onclick = () => fixDuplicates('merge');
+    $('dupSplit').onclick = () => fixDuplicates('split');
+  } else dw.hidden = true;
+  // premium colour notice
+  const ch = $('colorHint'), hasColor = S.entries.some(e => e.color);
+  ch.hidden = !(hasColor && !allowColor);
+  if (!ch.hidden) ch.innerHTML = `🔒 Custom marble colours are a premium feature, so default colours are used. <a href="#" id="colorUp">Learn more</a>`;
+  if ($('colorUp')) $('colorUp').onclick = e => { e.preventDefault(); gate('color'); };
+}
+
+function fixDuplicates(how) {
+  const entries = parseEntries($('names').value);
+  if (how === 'merge') {
+    const map = new Map();
+    entries.forEach(e => { const m = map.get(e.name); if (m) m.weight += e.weight; else map.set(e.name, { ...e }); });
+    $('names').value = canonicalText([...map.values()]);
+  } else {
+    const seen = new Map();
+    entries.forEach(e => { const c = (seen.get(e.name) || 0) + 1; seen.set(e.name, c); if (c > 1) e.name = `${e.name}${c}`; });
+    $('names').value = canonicalText(entries);
+  }
+  onInputChanged();
+}
+
+let rebuildTimer = 0, saveTimer = 0;
+function onInputChanged(immediate) {
+  if (S.verify && $('names').value !== S.verify.text) clearVerify();
+  readInput();
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set('names', $('names').value), 400);
+  clearTimeout(rebuildTimer);
+  if (immediate) rebuild(); else rebuildTimer = setTimeout(rebuild, 200);
+}
+
+function rebuild() {
+  if (S.state !== 'idle' && S.state !== 'done') return;
+  S.map = mapById(S.mapId);
+  S.sim = new Sim(S.map, S.marbles, S.seed);
+  S.cam.x = S.map.width / 2; S.cam.y = S.sim.spawnCenterY + 120; S.cam.zoom = 1; S.cam.slow = 1;
+  updateRanking(true);
+}
+
+function renderMapList() {
+  $('mapList').innerHTML = MAPS.map(m => {
+    const locked = m.premium && !Premium.isOn();
+    return `<button type="button" class="map-opt" role="radio" aria-checked="${m.id === S.mapId}" data-map="${m.id}">
+      <b>${escapeHtml(m.name)} ${locked ? '<span class="lock" aria-label="Premium">🔒</span>' : m.premium ? '<span class="tag">PRO</span>' : ''}</b>
+      <small>${escapeHtml(m.desc || '')}</small></button>`;
+  }).join('');
+}
+$('mapList').addEventListener('click', e => {
+  const b = e.target.closest('[data-map]'); if (!b) return;
+  const m = mapById(b.dataset.map);
+  if (m.premium && !Premium.isOn() && !gate('maps')) return;
+  S.mapId = m.id; store.set('map', m.id); if (S.verify) clearVerify();
+  renderMapList(); rebuild();
+});
+
+function renderMode() {
+  document.querySelectorAll('#modeSeg button').forEach(b => b.setAttribute('aria-checked', b.dataset.mode === S.mode));
+  const kRow = $('kRow'); kRow.hidden = !(S.mode === 'nwin' || S.mode === 'teams');
+  $('kLabel').textContent = S.mode === 'teams' ? 'Teams' : 'Winners';
+  $('kIn').min = S.mode === 'teams' ? 2 : 1; $('kIn').value = S.k;
+  $('modeHint').textContent = {
+    first: 'The first marble across the line wins',
+    last: 'The owner of the very last marble "wins" (forfeit)',
+    nwin: 'The first N players to finish win',
+    teams: 'Finishers are dealt into Team 1 → Team 2 → … in turn (balanced teams)',
+  }[S.mode];
+}
+$('modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-mode]'); if (!b) return;
+  S.mode = b.dataset.mode; store.set('mode', S.mode); if (S.verify) clearVerify(); renderMode();
+});
+$('kIn').addEventListener('change', () => { S.k = clamp(parseInt($('kIn').value, 10) || 2, 1, 99); $('kIn').value = S.k; store.set('k', S.k); if (S.verify) clearVerify(); });
+
+function setSpeed(v) {
+  S.speed = v; store.set('speed', v);
+  document.querySelectorAll('#speedSeg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === v));
+}
+$('speedSeg').addEventListener('click', e => { const b = e.target.closest('[data-speed]'); if (b) setSpeed(+b.dataset.speed); });
+
+function setMuteUI() { $('btnMute').textContent = Sound.muted ? '🔇' : '🔊'; $('btnMute').setAttribute('aria-pressed', Sound.muted); }
+$('btnMute').onclick = () => { Sound.init(); Sound.setMuted(!Sound.muted); setMuteUI(); };
+
+// list input
+$('names').addEventListener('input', () => onInputChanged());
+$('names').addEventListener('paste', e => {
+  const t = (e.clipboardData || window.clipboardData).getData('text');
+  if (!/[\t\n]/.test(t) && !/"/.test(t)) return; // plain comma lists are left as-is
+  e.preventDefault();
+  const ta = $('names'), norm = normalizeTable(t), before = ta.value.slice(0, ta.selectionStart), after = ta.value.slice(ta.selectionEnd);
+  ta.value = before + (before && !before.endsWith('\n') ? '\n' : '') + norm + (after && !after.startsWith('\n') ? '\n' : '') + after;
+  onInputChanged(true); toast(`Tidied the pasted table into ${parseEntries(norm).length} entries`);
+});
+$('fileIn').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const text = await f.text(); $('names').value = normalizeTable(text); e.target.value = '';
+  onInputChanged(true); toast(`Loaded ${S.people.length} players from ${f.name}`);
+});
+$('btnShuffle').onclick = () => {
+  const entries = parseEntries($('names').value); if (entries.length < 2) return;
+  const rng = mulberry32(newSeed()); seededShuffle(entries, rng);
+  $('names').value = canonicalText(entries); onInputChanged(true);
+};
+$('btnClear').onclick = () => { $('names').value = ''; onInputChanged(true); $('names').focus(); };
+$('seedIn').addEventListener('change', () => {
+  const v = $('seedIn').value.trim();
+  if (/^[0-9a-f]{1,8}$/i.test(v)) { setSeed(parseInt(v, 16)); if (S.verify) clearVerify(); rebuild(); }
+  else { setSeed(S.seed); toast('The seed must be up to 8 hex digits (0-9, A-F)'); }
+});
+$('btnReroll').onclick = () => { setSeed(newSeed()); if (S.verify) clearVerify(); rebuild(); };
+
+// live ranking
+let lastRankHtml = '';
+function updateRanking(force) {
+  const sim = S.sim; if (!sim) return;
+  const order = sim.ranking(); S.rankCache = order;
+  const span = S.map.finishY - S.map.spawn.y, rows = [];
+  const lim = Math.min(order.length, 30);
+  for (let r = 0; r < lim; r++) {
+    const i = order[r], m = S.marbles[i], b = sim.bodies[i];
+    const fin = b.finished, prog = fin ? 100 : clamp((b.position.y - S.map.spawn.y) / span * 100, 0, 99);
+    rows.push(`<li class="${fin ? 'fin' : ''}"><span class="bar" style="width:${prog.toFixed(0)}%"></span><span class="rk">${r + 1}</span><i class="dot" style="background:${m.color}"></i><span class="nm">${escapeHtml(m.name)}</span>${fin ? '<span aria-label="finished">🏁</span>' : ''}</li>`);
+  }
+  if (order.length > lim) rows.push(`<li class="muted" style="justify-content:center">… +${order.length - lim} more</li>`);
+  const html = rows.join('');
+  if (force || html !== lastRankHtml) { $('rkList').innerHTML = html; lastRankHtml = html; }
+  $('rkInfo').textContent = S.state === 'idle' ? `${S.marbles.length} waiting` : `${sim.finishOrder.length}/${S.marbles.length}`;
+}
+
+// start / stop / new draw
+function validate() {
+  if (S.people.length < 2) { toast('Enter at least 2 players'); $('names').focus(); return false; }
+  if (S.mode === 'nwin' && S.k >= S.people.length) { toast(`Winners must be ${S.people.length - 1} or fewer`); return false; }
+  if (S.mode === 'teams' && (S.k < 2 || S.k > S.people.length)) { toast(`Number of teams must be between 2 and ${S.people.length}`); return false; }
+  return true;
+}
+function primaryAction() {
+  if (S.state === 'idle') startRace();
+  else if (S.state === 'done') newDraw();
+}
+function startRace() {
+  readInput();
+  if (!validate()) return;
+  if (!S.verify) { // replaying a shared result (verification) bypasses locks so anyone can do it
+    if (mapById(S.mapId).premium && !gate('maps')) return;
+    if (S.marbles.length > Premium.maxMarbles() && !gate('marbles')) return;
+  }
+  closeModal('resultBack'); closeModal('upBack');
+  rebuild();
+  Sound.init();
+  S.sim.onFinish = (i, n) => { if (S.state === 'running') Sound.ding(n); };
+  S.sim.onHit = (label, v) => { if (S.state !== 'running') return; if (label === 'bumper') Sound.bump(); else if (v > 2) Sound.tick(v); };
+  S.result = null; S.acc = 0; S.countdownT = 3; S.lastBeep = 4; S.state = 'countdown';
+  lockUI(true);
+  if ($('optRec').checked) Recorder.start();
+  if (matchMedia('(max-width: 820px)').matches && !S.streamer) $('stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function abortRace() {
+  if (S.state !== 'running' && S.state !== 'countdown') return;
+  Recorder.stop(true); S.state = 'idle'; lockUI(false); rebuild(); toast('Race stopped (no result)');
+}
+function newDraw() {
+  closeModal('resultBack'); clearVerify();
+  setSeed(newSeed()); S.state = 'idle'; S.result = null; Confetti.parts = []; lockUI(false); rebuild();
+}
+function replaySame() {
+  const code = S.result && S.result.code;
+  closeModal('resultBack'); S.state = 'idle'; Confetti.parts = [];
+  S.verify = { code, text: $('names').value, local: true }; showVerifyBox();
+  lockUI(false); startRace();
+}
+function lockUI(on) {
+  $('ctrl').disabled = on; document.body.classList.toggle('racing', on);
+  const b = $('btnStart');
+  if (on) { b.innerHTML = '■ Stop'; b.classList.remove('primary'); b.classList.add('danger'); }
+  else if (S.state === 'done') { b.innerHTML = '▶ New draw<kbd>Space</kbd>'; b.classList.add('primary'); b.classList.remove('danger'); }
+  else { b.innerHTML = '▶ Start<kbd>Space</kbd>'; b.classList.add('primary'); b.classList.remove('danger'); }
+  $('fab').textContent = S.state === 'done' ? '▶ New draw' : '▶ Start';
+}
+$('btnStart').onclick = () => (S.state === 'running' || S.state === 'countdown') ? abortRace() : primaryAction();
+$('fab').onclick = primaryAction;
+
+function finishRace() {
+  S.state = 'done'; S.endStep = S.sim.steps;
+  S.result = computeResult(S.sim, S.people, S.mode, S.k);
+  const r = S.result;
+  Sound.fanfare();
+  const { cw, ch } = viewParams();
+  const colors = (r.winners.length ? r.winners : r.personOrder.slice(0, 3)).map(p => S.people[p].color);
+  Confetti.burst(cw, ch, colors);
+  lockUI(false);
+  $('live').textContent = resultText(r);
+  addHistory(r);
+  const draws = store.get('draws', 0) + 1; store.set('draws', draws);
+  setTimeout(() => Recorder.stop(), 2600);
+  if (!S.streamer) setTimeout(() => { if (S.state === 'done') showResultModal(); }, 1300);
+  setTimeout(maybeThanksToast, 2600);
+}
+
+function resultText(r) {
+  if (r.mode === 'teams') return 'Teams. ' + r.teamNames.map((t, i) => `Team ${i + 1}: ${t.join(', ')}`).join('. ');
+  const label = { first: 'Winner', last: 'Last place', nwin: 'Winners' }[r.mode];
+  return `${label}: ${r.winnerNames.join(', ')}`;
+}
+
+function showResultModal() {
+  const r = S.result; if (!r) return;
+  const title = { first: '🏆 Winner', last: '🐢 Last place', nwin: `🎉 ${r.winnerNames.length} winners`, teams: '👥 Teams' }[r.mode];
+  const pc = p => S.people[p].color;
+  let body = '';
+  if (r.mode === 'teams') body = `<div class="teams">${r.teams.map((t, i) => `<div class="team"><b>Team ${i + 1}</b><div>${t.map(p => escapeHtml(S.people[p].name)).join('<br>')}</div></div>`).join('')}</div>`;
+  else body = `<div class="winners">${r.winners.map(p => `<span class="winner"><i style="background:${pc(p)}"></i>${escapeHtml(S.people[p].name)}</span>`).join('')}</div>`;
+  let verify = '';
+  if (S.verify && S.verify.code) {
+    verify = r.code === S.verify.code
+      ? `<div class="badge ok">✅ Verified — identical to the ${S.verify.local ? 'previous' : 'shared'} result (code ${r.code})</div>`
+      : `<div class="badge bad">⚠️ Result code mismatch (${r.code} ≠ ${S.verify.code}). The list, map or mode differs, or a different browser engine was used.</div>`;
+  }
+  const links = donateLinks();
+  const donateHtml = links.length ? `<div class="donate-foot"><p>Enjoyed it? Buy me a coffee ☕</p><div class="row">${links.map(([, label, url]) =>
+    `<a class="btn sm" href="${escapeHtml(url)}" target="_blank" rel="noopener">☕ ${label}</a>`).join('')}</div></div>` : '';
+  const premiumNote = Premium.enabled() && !Premium.isOn()
+    ? `<div class="watermark">Marble Roulette+ Free · <a href="#" id="wmUp">Remove watermark / see Premium</a></div>` : '';
+  $('resultModal').innerHTML = `
+    <button class="x" aria-label="Close" data-close>×</button>
+    <h2 id="resTitle">${title}</h2>
+    <div class="meta">${escapeHtml(S.map.name)} · seed <b class="mono">#${hex8(S.seed)}</b> · ${S.marbles.length} marbles · result code <span class="mono">${r.code}</span>${r.nudges ? ` · ${r.nudges} anti-stuck nudges` : ''}</div>
+    ${body}${verify}
+    <details><summary>Full finishing order (text)</summary><ol class="full-rank">${r.orderNames.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ol></details>
+    <div class="actions">
+      <button class="btn primary" id="rNew">▶ New draw</button>
+      <button class="btn" id="rShare">🔗 Copy result link</button>
+      <button class="btn" id="rReplay">🔁 Replay & verify (same seed)</button>
+      ${Recorder.url ? `<a class="btn" href="${Recorder.url}" download="${Recorder.filename}">📥 Save video</a>` : ''}
+      <button class="btn ghost" id="rCopyText">📋 Copy result text</button>
+    </div>
+    ${donateHtml}${premiumNote}`;
+  openModal('resultBack');
+  $('rNew').onclick = newDraw;
+  $('rShare').onclick = () => copyText(buildShareUrl(true), 'Result link copied — anyone who opens it can replay the race and verify it');
+  $('rReplay').onclick = replaySame;
+  $('rCopyText').onclick = () => copyText(`[Marble Roulette+] ${resultText(r)}\nSeed #${hex8(S.seed)} · ${S.map.name}\nVerify: ${buildShareUrl(true)}`, 'Result copied');
+  if ($('wmUp')) $('wmUp').onclick = e => { e.preventDefault(); openUpgrade('watermark'); };
+  $('rNew').focus();
+}
+
+// dialogs / toasts
+let lastFocus = null;
+function openModal(id) { lastFocus = document.activeElement; $(id).hidden = false; }
+function closeModal(id) { if ($(id).hidden) return; $(id).hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+document.querySelectorAll('.backdrop').forEach(bk => bk.addEventListener('click', e => {
+  if (e.target === bk || e.target.closest('[data-close]')) closeModal(bk.id);
+}));
+function toast(msg, opts = {}) {
+  const el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status');
+  el.innerHTML = `<p>${opts.html ? msg : escapeHtml(msg)}</p><button class="x" aria-label="Close">×</button>`;
+  el.querySelector('.x').onclick = () => el.remove();
+  $('toasts').appendChild(el);
+  if (!opts.sticky) setTimeout(() => el.remove(), opts.ms || 3200);
+  return el;
+}
+async function copyText(t, msg) {
+  try { await navigator.clipboard.writeText(t); toast(msg); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(msg); }
+}
+
+// history (last 10)
+function addHistory(r) {
+  const list = store.get('history', []);
+  list.unshift({ t: Date.now(), seed: hex8(S.seed), map: S.map.name, mode: r.mode, text: resultText(r), url: buildShareUrl(true) });
+  store.set('history', list.slice(0, 10)); renderHistory();
+}
+function renderHistory() {
+  const list = store.get('history', []);
+  $('histCount').textContent = list.length ? `(${list.length})` : '';
+  $('histList').innerHTML = list.length ? list.map((h, i) => `<li><div>${escapeHtml(h.text)}</div>
+    <div class="h-meta">${new Date(h.t).toLocaleString('en-GB', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${escapeHtml(h.map)} · #${h.seed}
+    · <a href="#" data-h="${i}" data-act="load">Load</a> · <a href="#" data-h="${i}" data-act="copy">Link</a></div></li>`).join('')
+    : '<li class="muted" style="list-style:none;margin-left:-18px">No results yet</li>';
+}
+$('histList').addEventListener('click', e => {
+  const a = e.target.closest('[data-h]'); if (!a) return; e.preventDefault();
+  const h = store.get('history', [])[+a.dataset.h]; if (!h) return;
+  if (a.dataset.act === 'copy') copyText(h.url, 'Link copied');
+  else if (S.state === 'idle' || S.state === 'done') { const hash = h.url.split('#')[1]; if (hash) applyShare(new URLSearchParams(hash)); }
+});
+
+// keyboard
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (e.key === 'Escape') {
+    if (!$('upBack').hidden) return closeModal('upBack');
+    if (!$('resultBack').hidden) return closeModal('resultBack');
+    if (S.streamer) return setStreamer(false);
+    return;
+  }
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.isComposing) return;
+  if (e.code === 'Space') { e.preventDefault(); if (!$('upBack').hidden) return; primaryAction(); }
+  else if (e.key === 'm' || e.key === 'M') { $('btnMute').click(); }
+  else if (e.key === 's' || e.key === 'S') { toggleStreamer(); }
+  else if (e.key === '1') setSpeed(0.5); else if (e.key === '2') setSpeed(1); else if (e.key === '3') setSpeed(2);
+});
+
+/* =========================================================
+ * 7. SHARE — share seed, list and result as a URL; replay to verify
+ * ========================================================= */
+function buildShareUrl(withResult) {
+  const p = new URLSearchParams();
+  p.set('v', '1'); p.set('s', hex8(S.seed)); p.set('m', S.mapId); p.set('mo', S.mode);
+  if (S.mode === 'nwin' || S.mode === 'teams') p.set('k', S.k);
+  p.set('n', b64uEncode(canonicalText(S.entries)));
+  if (withResult && S.result) p.set('r', S.result.code);
+  const base = location.href.split('#')[0];
+  return `${base}#${p.toString()}`;
+}
+function applyShare(p) {
+  try {
+    if (!p.get('n') || !p.get('s')) return false;
+    $('names').value = b64uDecode(p.get('n'));
+    setSeed(parseInt(p.get('s'), 16) || 0);
+    S.mapId = mapById(p.get('m')).id;
+    S.mode = ['first', 'last', 'nwin', 'teams'].includes(p.get('mo')) ? p.get('mo') : 'first';
+    S.k = clamp(parseInt(p.get('k'), 10) || 2, 1, 99);
+    S.verify = { code: p.get('r') || null, text: $('names').value, local: false };
+    closeModal('resultBack'); S.state = 'idle'; S.result = null; lockUI(false);
+    renderMapList(); renderMode(); readInput(); rebuild(); showVerifyBox();
+    return true;
+  } catch (e) { toast('Could not read the shared link'); return false; }
+}
+function showVerifyBox() {
+  const v = S.verify, box = $('verifyBox'); if (!v) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = v.local
+    ? `🔁 Replaying the last race with identical inputs and comparing against result code <b class="mono">${v.code}</b>.`
+    : `🔍 <b>Shared draw</b> loaded. Seed <b class="mono">#${hex8(S.seed)}</b> · ${escapeHtml(mapById(S.mapId).name)}<br>
+       Press Start to replay the same race${v.code ? ` and check it matches result code <b class="mono">${v.code}</b>` : ''}.
+       <br><span class="muted">Changing the list, seed or map turns verification off.</span>`;
+}
+function clearVerify() { S.verify = null; $('verifyBox').hidden = true; }
+
+/* =========================================================
+ * 8. MONETIZATION — premium (Lemon Squeezy) & tips
+ * ========================================================= */
+const FEATURES = [
+  { id: 'maps', label: 'Maps', free: '3 basic', pro: `All ${MAPS.length}+` },
+  { id: 'marbles', label: 'Marbles', free: `Up to ${CONFIG.tiers.free.maxMarbles}`, pro: 'Unlimited' },
+  { id: 'watermark', label: 'Watermark', free: 'Yes', pro: 'No' },
+  { id: 'streamer', label: 'Streamer mode', free: '—', pro: '✓' },
+  { id: 'hq', label: 'Recording quality', free: 'Standard 2.5 Mbps', pro: 'High 8 Mbps' },
+  { id: 'color', label: 'Custom marble colours', free: '—', pro: '✓' },
+  { id: 'logo', label: 'Logo upload', free: '—', pro: '✓' },
+];
+const Premium = {
+  enabled: () => CONFIG.monetization === 'premium',
+  isOn: () => CONFIG.monetization !== 'premium' || S.premium,
+  maxMarbles: () => (Premium.isOn() ? CONFIG.tiers.premium : CONFIG.tiers.free).maxMarbles,
+  bitrate: () => (Premium.isOn() ? CONFIG.tiers.premium : CONFIG.tiers.free).bitrate,
+  async validate(key) {
+    const res = await fetch(CONFIG.lemon.validateUrl, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ license_key: key.trim() }),
+    }); // network errors throw → caller applies the offline grace period
+    const d = await res.json().catch(() => ({}));
+    if (!d.valid) return { ok: false, msg: d.error || 'Invalid license key' };
+    const st = d.license_key && d.license_key.status;
+    if (st && !['active'].includes(st)) return { ok: false, msg: `License status: ${st}` };
+    const meta = d.meta || {};
+    if (CONFIG.lemon.productId && String(meta.product_id) !== String(CONFIG.lemon.productId)) return { ok: false, msg: 'This key is not for this product' };
+    if (CONFIG.lemon.storeId && String(meta.store_id) !== String(CONFIG.lemon.storeId)) return { ok: false, msg: 'This key is not from this store' };
+    return { ok: true };
+  },
+  /** Re-validate on every app start */
+  async revalidateOnBoot() {
+    if (!Premium.enabled()) return;
+    const lic = store.get('license', null); if (!lic) return;
+    const graceMs = CONFIG.lemon.offlineGraceDays * 864e5;
+    S.premium = Date.now() - (lic.at || 0) < graceMs; // optimistic start
+    refreshPremiumUI();
+    try {
+      const r = await Premium.validate(lic.key);
+      if (r.ok) { lic.at = Date.now(); store.set('license', lic); S.premium = true; }
+      else { store.del('license'); S.premium = false; toast(`Premium was deactivated: ${r.msg}`); }
+    } catch (e) { /* offline: keep premium within the grace period */ }
+    refreshPremiumUI();
+  },
+};
+
+/** Locked-feature gate — never opens a dialog during a race */
+function gate(feature) {
+  if (Premium.isOn()) return true;
+  if (S.state === 'running' || S.state === 'countdown') return false;
+  openUpgrade(feature); return false;
+}
+function openUpgrade(feature) {
+  if (!Premium.enabled() || S.state === 'running' || S.state === 'countdown') return;
+  const lic = store.get('license', null);
+  $('upModal').innerHTML = `
+    <button class="x" aria-label="Close" data-close>×</button>
+    <h2 id="upTitle">✨ Premium</h2>
+    <div class="meta">Unlock everything with a one-time purchase.</div>
+    <table class="cmp"><thead><tr><th>Feature</th><th>Free</th><th>Premium</th></tr></thead><tbody>
+      ${FEATURES.map(f => `<tr class="${f.id === feature ? 'hl' : ''}"><td>${f.label}</td><td>${f.free}</td><td>${f.pro}</td></tr>`).join('')}
+    </tbody></table>
+    <a class="btn primary big" href="${escapeHtml(CONFIG.lemon.checkoutUrl)}" target="_blank" rel="noopener">Buy now →</a>
+    <div style="margin-top:14px">
+      <label for="licIn" class="meta">License key from your purchase email</label>
+      <div class="row"><input id="licIn" class="text mono" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" value="${lic ? escapeHtml(lic.key) : ''}" style="flex:1;min-width:0">
+      <button class="btn" id="licBtn">Activate</button></div>
+      <div class="lic-status" id="licStatus" aria-live="polite"></div>
+    </div>`;
+  openModal('upBack');
+  $('licBtn').onclick = async () => {
+    const key = $('licIn').value.trim(), st = $('licStatus');
+    if (!key) { st.textContent = 'Enter a key'; return; }
+    st.textContent = 'Checking…'; $('licBtn').disabled = true;
+    try {
+      const r = await Premium.validate(key);
+      if (r.ok) {
+        store.set('license', { key, at: Date.now() }); S.premium = true; refreshPremiumUI();
+        st.innerHTML = '<span style="color:var(--ok)">✅ Premium activated. Thank you!</span>';
+        setTimeout(() => closeModal('upBack'), 1200);
+      } else st.innerHTML = `<span style="color:var(--danger)">${escapeHtml(r.msg)}</span>`;
+    } catch (e) { st.innerHTML = '<span style="color:var(--danger)">Could not reach the server. Check your connection.</span>'; }
+    $('licBtn').disabled = false;
+  };
+  setTimeout(() => $('licIn') && $('licIn').focus(), 50);
+}
+function needsWatermark() { return Premium.enabled() && !Premium.isOn(); }
+function refreshPremiumUI() {
+  renderMapList(); readInput();
+  const pc = $('premiumCard');
+  if (Premium.enabled()) {
+    pc.hidden = false;
+    pc.innerHTML = Premium.isOn()
+      ? `<h3>Premium</h3><div>✅ Active <button class="btn sm ghost" id="licOff">Deactivate</button></div>`
+      : `<h3>Premium</h3><p class="hint" style="margin-top:0">All maps · unlimited marbles · no watermark · streamer mode · HQ recording</p>
+         <div class="row"><button class="btn sm primary" id="upOpen">✨ Upgrade / enter key</button></div>`;
+    if ($('upOpen')) $('upOpen').onclick = () => openUpgrade();
+    if ($('licOff')) $('licOff').onclick = () => { store.del('license'); S.premium = false; refreshPremiumUI(); };
+  } else pc.hidden = true;
+  $('recQ').textContent = Premium.isOn() ? 'HQ' : 'Standard · 🔒HQ';
+  $('logoLock').textContent = Premium.isOn() ? '' : '🔒';
+  $('colorSyntax').hidden = Premium.enabled() && !Premium.isOn();
+  if (!Premium.isOn()) { S.logoImg = null; }
+  else loadLogo();
+}
+
+// tips
+function donateLinks() {
+  return [['kofi', 'Ko-fi', CONFIG.donate.kofi], ['bmac', 'Buy Me a Coffee', CONFIG.donate.bmac]].filter(x => x[2]);
+}
+function renderDonateHeader() {
+  const links = donateLinks(), w = $('donateWrap');
+  if (!links.length) { w.hidden = true; return; }
+  w.hidden = false;
+  if (links.length === 1) { w.innerHTML = `<a class="btn sm" href="${escapeHtml(links[0][2])}" target="_blank" rel="noopener">☕<span class="hide-sm"> Tip</span></a>`; return; }
+  w.innerHTML = `<button class="btn sm" id="donBtn" aria-expanded="false" aria-haspopup="true">☕<span class="hide-sm"> Tip</span></button>
+    <div class="donate-menu" id="donMenu" hidden>${links.map(([, l, u]) => `<a class="btn sm ghost" href="${escapeHtml(u)}" target="_blank" rel="noopener">☕ ${l}</a>`).join('')}</div>`;
+  $('donBtn').onclick = () => { const m = $('donMenu'); m.hidden = !m.hidden; $('donBtn').setAttribute('aria-expanded', !m.hidden); };
+  document.addEventListener('click', e => { if (!w.contains(e.target) && $('donMenu')) $('donMenu').hidden = true; });
+}
+function maybeThanksToast() {
+  if (S.state !== 'done' || S.streamer) return;   // never during a race or stream
+  const links = donateLinks(); if (!links.length) return;
+  if (store.get('draws', 0) < CONFIG.thanksToastAfter || store.get('thanksShown', false)) return;
+  store.set('thanksShown', true);
+  toast(`That's ${CONFIG.thanksToastAfter} draws already! 🙏 If Marble Roulette+ helped, you can <a href="${escapeHtml(links[0][2])}" target="_blank" rel="noopener">buy me a coffee</a>.`, { html: true, sticky: true });
+}
+
+// streamer mode + Ko-fi QR
+let qrMade = false;
+function setStreamer(on) {
+  S.streamer = on; document.body.classList.toggle('streamer', on);
+  closeModal('resultBack');
+  const showQR = on && $('optQR').checked && CONFIG.donate.kofi && window.QRCode;
+  if (showQR && !qrMade) { new QRCode($('qrBox'), { text: CONFIG.donate.kofi, width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M }); qrMade = true; }
+  $('qrCorner').hidden = !showQR;
+  if (on) { const h = $('streamHint'); h.classList.remove('fade'); setTimeout(() => h.classList.add('fade'), 3000); }
+  requestAnimationFrame(resizeCanvas);
+}
+function toggleStreamer() {
+  if (!S.streamer && !gate('streamer')) return;
+  setStreamer(!S.streamer);
+}
+$('btnStreamer').onclick = toggleStreamer;
+$('exitStreamer').onclick = () => setStreamer(false);
+$('optQR').addEventListener('change', () => store.set('qr', $('optQR').checked));
+
+// logo upload (premium)
+$('logoLabel').addEventListener('click', e => { if (!Premium.isOn()) { e.preventDefault(); gate('logo'); } });
+$('logoIn').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'), sz = 160, k = Math.min(sz / img.width, sz / img.height);
+    c.width = sz; c.height = sz; const x = c.getContext('2d');
+    x.drawImage(img, (sz - img.width * k) / 2, (sz - img.height * k) / 2, img.width * k, img.height * k);
+    store.set('logo', c.toDataURL('image/png')); loadLogo(); URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(f); e.target.value = '';
+});
+$('logoClear').onclick = () => { store.del('logo'); S.logoImg = null; $('logoClear').hidden = true; };
+function loadLogo() {
+  const d = store.get('logo', null); $('logoClear').hidden = !d;
+  if (!d) { S.logoImg = null; return; }
+  const img = new Image(); img.onload = () => { S.logoImg = img; }; img.src = d;
+}
+
+/* =========================================================
+ * 9. RECORDING — MediaRecorder saves canvas + sound as WebM
+ * ========================================================= */
+const Recorder = {
+  rec: null, chunks: [], url: null, filename: '',
+  supported: () => !!(window.MediaRecorder && canvas.captureStream),
+  start() {
+    if (!this.supported()) { toast('This browser does not support recording'); return; }
+    if (this.url) { URL.revokeObjectURL(this.url); this.url = null; }
+    const stream = canvas.captureStream(60);
+    if (Sound.dest) Sound.dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+    const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    try {
+      this.rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: Premium.bitrate() });
+    } catch (e) { toast('Could not start recording'); return; }
+    this.chunks = []; this.filename = `marble-roulette-${hex8(S.seed)}.webm`;
+    this.rec.ondataavailable = e => e.data.size && this.chunks.push(e.data);
+    this.rec.onstop = () => {
+      if (this.discard) { this.chunks = []; return; }
+      this.url = URL.createObjectURL(new Blob(this.chunks, { type: 'video/webm' }));
+      if (!$('resultBack').hidden && S.result) showResultModal();
+      else toast(`🎥 Recording ready — <a href="${this.url}" download="${this.filename}">Save video</a>`, { html: true, ms: 8000 });
+    };
+    this.discard = false; this.rec.start(250);
+  },
+  stop(discard) { if (this.rec && this.rec.state !== 'inactive') { this.discard = !!discard; this.rec.stop(); } },
+};
+
+/* =========================================================
+ * 10. MAIN LOOP — fixed-timestep accumulator (speed/slow-mo only change how many steps run)
+ * ========================================================= */
+let lastT = performance.now(), frameNo = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  const STEP = CONFIG.physics.stepMs;
+  if (S.state === 'countdown') {
+    S.countdownT -= dt;
+    const v = Math.ceil(S.countdownT);
+    if (v < S.lastBeep) { S.lastBeep = v; Sound.beep(v <= 0); }
+    if (S.countdownT <= 0) S.state = 'running';
+  } else if (S.state === 'running' || (S.state === 'done' && S.sim.steps - S.endStep < 300)) {
+    S.acc += dt * 1000 * S.speed * (S.state === 'running' ? S.cam.slow : 1);
+    let n = 0;
+    while (S.acc >= STEP && n < 12) {
+      S.sim.stepOnce(); S.acc -= STEP; n++;
+      if (S.state === 'running' && isRaceOver(S.sim, S.people, S.mode, S.k)) { finishRace(); break; }
+    }
+    if (n >= 12) S.acc = 0; // slow device: same result, just less smooth
+  }
+  updateCamera(dt);
+  render(dt);
+  if (++frameNo % 6 === 0 && S.state !== 'idle') updateRanking();
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+ * 11. BOOT
+ * ========================================================= */
+function boot() {
+  if (!window.Matter) { document.body.innerHTML = '<p style="padding:20px">Could not load the physics engine (Matter.js). Check your internet connection.</p>'; return; }
+  setSeed(S.seed); setSpeed(S.speed); setMuteUI();
+  $('optQR').checked = store.get('qr', true);
+  $('qrOptRow').hidden = !CONFIG.donate.kofi;
+  $('optRec').disabled = !Recorder.supported();
+  renderDonateHeader(); renderHistory(); renderMode();
+  new ResizeObserver(resizeCanvas).observe($('stage')); resizeCanvas();
+
+  const shared = location.hash.length > 1 && applyShare(new URLSearchParams(location.hash.slice(1)));
+  if (!shared) {
+    $('names').value = store.get('names', 'Alice\nBob\nCharlie*2\nDana\nEthan\nFiona');
+    readInput(); refreshPremiumUI(); rebuild();
+  } else { refreshPremiumUI(); rebuild(); toast('Shared draw loaded. Press Start to replay and verify.', { ms: 5000 }); }
+  Premium.revalidateOnBoot();
+  requestAnimationFrame(frame);
+}
+window.addEventListener('hashchange', () => { if (S.state === 'idle' || S.state === 'done') applyShare(new URLSearchParams(location.hash.slice(1))); });
+// debug/verification hook (run headless reproducibility tests from the console)
+window.MarbleRoulette = { Sim, MAPS, parseEntries, buildMarbles, simulateHeadless, isRaceOver, computeResult, state: S };
+boot();
+</script>
+</body>
+</html>
